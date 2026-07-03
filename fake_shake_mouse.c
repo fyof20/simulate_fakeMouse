@@ -8,7 +8,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <signal.h>
 
+static int running = 1;
+
+void stop(int sig) { running = 0; }
 
 int main(){
 
@@ -37,8 +41,11 @@ int main(){
     }
 
 
+    printf("shaking mouse (Ctrl+C to stop)\n");
     srand(time(NULL));
-    while (1){
+    signal(SIGINT, stop);
+    signal(SIGTERM, stop);
+    while (running){
         int direction = rand() % 2 ==0 ? REL_X : REL_Y;
         int amplitude = rand() % 41 - 20;
 
@@ -48,6 +55,9 @@ int main(){
 
 
         usleep(50000);
-    }    
+    }
+    libevdev_uinput_destroy(uidev);
+    libevdev_free(dev);
+    printf("stopped.\n");
     return 0;
 }

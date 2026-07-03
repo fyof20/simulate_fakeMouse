@@ -5,7 +5,11 @@
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
 #include <time.h>
+#include <signal.h>
 
+static int running = 1;
+
+void stop(int sig) { running = 0; }
 
 int main(){
 //create a fake mouse
@@ -31,10 +35,12 @@ if(code !=0){
     perror("ERROR!:");
     return -1;
 }
-printf("mouse will start cliking in 5s");
+printf("mouse will start cliking in 5s (Ctrl+C to stop)\n");
+signal(SIGINT, stop);
+signal(SIGTERM, stop);
 usleep(5000000);
 
-while (1){
+while (running){
     libevdev_uinput_write_event(uidev,EV_KEY, BTN_LEFT, 1);
     libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
     usleep(50000);
@@ -47,5 +53,8 @@ while (1){
 }
 
 
+    libevdev_uinput_destroy(uidev);
+    libevdev_free(dev);
+    printf("stopped.\n");
     return 0;
 }
