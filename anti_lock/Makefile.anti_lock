@@ -1,0 +1,53 @@
+# Makefile for fake_mouse_anti_lock
+# 防锁屏工具 - 用户态 + 内核模块
+
+PREFIX ?= /usr/local
+CC ?= gcc
+
+# 用户态程序
+USER_PROG := fake_mouse_anti_lock
+USER_SRC := fake_mouse_anti_lock.c
+USER_CFLAGS := $(shell pkg-config --cflags libevdev 2>/dev/null || echo "-I/usr/include/libevdev-1.0/")
+USER_LIBS := $(shell pkg-config --libs libevdev 2>/dev/null || echo "-levdev")
+
+# 内核模块
+KERNEL_MOD := fake_mouse_kernel_anti_lock
+KVERSION := $(shell uname -r)
+
+.PHONY: all user kernel clean install uninstall help
+
+# 默认编译用户态程序
+all: user
+
+user: $(USER_PROG)
+
+$(USER_PROG): $(USER_SRC)
+	$(CC) $(USER_CFLAGS) -Wall -O2 -o $@ $< $(USER_LIBS) -lpthread
+
+kernel:
+	make -C /lib/modules/$(KVERSION)/build M=$(PWD) modules \
+		KBUILD_MODULES_NAME=$(KERNEL_MOD) \
+		-f Makefile.kernel_anti_lock
+
+install: user
+	install -Dm755 $(USER_PROG) $(PREFIX)/bin/$(USER_PROG)
+	@echo "安装完成. 运行: sudo $(USER_PROG) --help"
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(USER_PROG)
+	@echo "卸载完成."
+
+clean:
+	rm -f $(USER_PROG)
+	make -C /lib/modules/$(KVERSION)/build M=$(PWD) clean \
+		-f Makefile.kernel_anti_lock 2>/dev/null || true
+
+help:
+	@echo "用法:"
+	@echo "  make              编译用户态程序"
+	@echo "  make user         编译用户态程序"
+	@echo "  make kernel       编译内核模块 (需要内核头文件)"
+	@echo "  make install      安装用户态程序到 $(PREFIX)/bin/"
+	@echo "  make uninstall    卸载用户态程序"
+	@echo "  make clean        清理所有编译产物"
+	@echo "  make help         显示此帮助"
